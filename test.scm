@@ -14,7 +14,7 @@
   (gl:clear gl:+color-buffer-bit+)
   (gl:use-program program)
 
-  (gl:uniform3f offset-location 0.5 0 0)
+  (gl:uniform3f offset-location 0 0 0)
 
   ;; first triangle
   (gl:bind-vertex-array vao1)

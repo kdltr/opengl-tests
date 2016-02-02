@@ -8,5 +8,5 @@ uniform vec3 offset;
 void main()
 {
     gl_Position = vec4(position + offset, 1.0f);
-    fragColor = color;
+    fragColor = position;
 }
