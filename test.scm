@@ -14,12 +14,10 @@
   (gl:clear gl:+color-buffer-bit+)
   (gl:use-program program)
 
+  (gl:uniform3f offset-location 0.5 0 0)
+
   ;; first triangle
   (gl:bind-vertex-array vao1)
-  (gl:draw-arrays gl:+triangles+ 0 3)
-
-  ;; second triangle
-  (gl:bind-vertex-array vao2)
   (gl:draw-arrays gl:+triangles+ 0 3))
 
 (glfw:init)
@@ -43,38 +41,21 @@
 (define program
   (pipeline:make "vertex.glsl" "fragment.glsl"))
 
+(define offset-location
+  (gl:get-uniform-location program "offset"))
 
 (print "VAO1")
 (define vbo1 (gen-buffer))
 (define vao1 (gen-vertex-array))
 (define vertices1
-  #f32( 0.8  0.5 0.0  1.0 0.0 0.0
-        0.8 -0.5 0.0  0.0 1.0 0.0
-        0.3 -0.5 0.0  0.0 0.0 1.0))
+  #f32(-0.5 -0.5 0.0  1.0 0.0 0.0
+        0.5 -0.5 0.0  0.0 1.0 0.0
+        0.0  0.5 0.0  0.0 0.0 1.0))
 
 (gl:bind-vertex-array vao1)
 (gl:bind-buffer gl:+array-buffer+ vbo1)
 (gl:buffer-data gl:+array-buffer+ (size vertices1) (->pointer vertices1) gl:+static-draw+)
 (gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 6 4) #f)
-(gl:enable-vertex-attrib-array 0)
-(gl:vertex-attrib-pointer 1 3 gl:+float+ #f (* 6 4) (address->pointer (* 3 4)))
-(gl:enable-vertex-attrib-array 1)
-(gl:bind-vertex-array 0)
-(check-error)
-
-
-(print "VAO2")
-(define vbo2 (gen-buffer))
-(define vao2 (gen-vertex-array))
-(define vertices2
-  #f32( -0.8  0.5 0.0  0.3 0.5 0.5
-        -0.8 -0.5 0.0  0.3 0.5 0.5
-        -0.3 -0.5 0.0  0.3 0.5 0.5))
-
-(gl:bind-vertex-array vao2)
-(gl:bind-buffer gl:+array-buffer+ vbo2)
-(gl:buffer-data gl:+array-buffer+ (size vertices2) (->pointer vertices2) gl:+static-draw+)
-(gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 3 4) #f)
 (gl:enable-vertex-attrib-array 0)
 (gl:vertex-attrib-pointer 1 3 gl:+float+ #f (* 6 4) (address->pointer (* 3 4)))
 (gl:enable-vertex-attrib-array 1)
