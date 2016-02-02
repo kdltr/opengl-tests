@@ -5,16 +5,6 @@
   (prefix opengl-glew gl:)
   gl-utils-core)
 
-(define vertices
-  #f32( 0.5  0.5 0.0
-        0.5 -0.5 0.0
-       -0.5 -0.5 0.0
-       -0.5  0.5 0.0))
-
-(define indices
-  #u32(0 1 3
-       1 2 3))
-
 (define vertex-shader-source #<<EOF
   #version 330 core
   layout (location = 0) in vec3 position;
@@ -26,7 +16,7 @@
 EOF
 )
 
-(define fragment-shader-source #<<EOF
+(define fragment-shader-source1 #<<EOF
   #version 330 core
   out vec4 color;
 
@@ -37,13 +27,31 @@ EOF
 EOF
 )
 
+(define fragment-shader-source2 #<<EOF
+  #version 330 core
+  out vec4 color;
+
+  void main()
+  {
+   color = vec4(0.0f, 1.0f, 1.0f, 1.0f);
+  }
+EOF
+)
+
 (define (render)
   (gl:clear-color 0.2 0.3 0.3 1)
   (gl:clear gl:+color-buffer-bit+)
-  (gl:use-program program)
-  (gl:bind-vertex-array vao)
-  (gl:draw-elements gl:+triangles+ 6 gl:+unsigned-int+ #f)
-  (gl:bind-vertex-array 0))
+
+  ;; first triangle
+  (gl:use-program program1)
+  (gl:bind-vertex-array vao1)
+  (gl:draw-arrays gl:+triangles+ 0 3)
+
+  ;; second triangle
+  (gl:use-program program2)
+  (gl:bind-vertex-array vao2)
+  (gl:draw-arrays gl:+triangles+ 0 3)
+)
 
 (glfw:init)
 (define window
@@ -69,35 +77,64 @@ EOF
 (gl:compile-shader vertex-shader)
 (check-error)
 
-(print "fragment shader")
-(define fragment-shader
-  (make-shader gl:+fragment-shader+ fragment-shader-source))
-(gl:compile-shader fragment-shader)
+(print "fragment shader 1")
+(define fragment-shader1
+  (make-shader gl:+fragment-shader+ fragment-shader-source1))
+(gl:compile-shader fragment-shader1)
 (check-error)
 
-(print "program")
-(define program
-  (make-program (list vertex-shader fragment-shader)))
-(gl:use-program program)
+(print "fragment shader 2")
+(define fragment-shader2
+  (make-shader gl:+fragment-shader+ fragment-shader-source2))
+(gl:compile-shader fragment-shader2)
 (check-error)
+
+(print "program 1")
+(define program1
+  (make-program (list vertex-shader fragment-shader1)))
+(check-error)
+
+(print "program 2")
+(define program2
+  (make-program (list vertex-shader fragment-shader2)))
 
 (gl:delete-shader vertex-shader)
-(gl:delete-shader fragment-shader)
+(gl:delete-shader fragment-shader1)
+(gl:delete-shader fragment-shader2)
 
-(print "VAO")
-(define vbo (gen-buffer))
-(define ebo (gen-buffer))
-(define vao (gen-vertex-array))
+(print "VAO1")
+(define vbo1 (gen-buffer))
+(define vao1 (gen-vertex-array))
+(define vertices1
+  #f32( 0.8  0.5 0.0
+        0.8 -0.5 0.0
+        0.3 -0.5 0.0))
 
-(gl:bind-vertex-array vao)
-(gl:bind-buffer gl:+array-buffer+ vbo)
-(gl:buffer-data gl:+array-buffer+ (size vertices) (->pointer vertices) gl:+static-draw+)
-(gl:bind-buffer gl:+element-array-buffer+ ebo)
-(gl:buffer-data gl:+element-array-buffer+ (size indices) (->pointer indices) gl:+static-draw+)
+(gl:bind-vertex-array vao1)
+(gl:bind-buffer gl:+array-buffer+ vbo1)
+(gl:buffer-data gl:+array-buffer+ (size vertices1) (->pointer vertices1) gl:+static-draw+)
 (gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 3 4) #f)
 (gl:enable-vertex-attrib-array 0)
 (gl:bind-vertex-array 0)
 (check-error)
+
+
+(print "VAO2")
+(define vbo2 (gen-buffer))
+(define vao2 (gen-vertex-array))
+(define vertices2
+  #f32( -0.8  0.5 0.0
+        -0.8 -0.5 0.0
+        -0.3 -0.5 0.0))
+
+(gl:bind-vertex-array vao2)
+(gl:bind-buffer gl:+array-buffer+ vbo2)
+(gl:buffer-data gl:+array-buffer+ (size vertices2) (->pointer vertices2) gl:+static-draw+)
+(gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 3 4) #f)
+(gl:enable-vertex-attrib-array 0)
+(gl:bind-vertex-array 0)
+(check-error)
+
 
 (while (not (glfw:window-should-close window))
   (glfw:poll-events)
