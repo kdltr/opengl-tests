@@ -6,31 +6,8 @@
   (prefix opengl-glew gl:)
   gl-utils-core)
 
-(define vertex-shader-source #<<EOF
-  #version 330 core
-  layout (location = 0) in vec3 position;
-  layout (location = 1) in vec3 color;
-  out vec3 fragColor;
-
-  void main()
-  {
-   gl_Position = vec4(position, 1.0);
-   fragColor = color;
-  }
-EOF
-)
-
-(define fragment-shader-source #<<EOF
-  #version 330 core
-  in vec3 fragColor;
-  out vec4 color;
-
-  void main()
-  {
-   color = vec4(fragColor, 1.0f);
-  }
-EOF
-)
+(load "pipeline")
+(import (prefix pipeline pipeline:))
 
 (define (render)
   (gl:clear-color 0.2 0.3 0.3 1)
@@ -43,8 +20,7 @@ EOF
 
   ;; second triangle
   (gl:bind-vertex-array vao2)
-  (gl:draw-arrays gl:+triangles+ 0 3)
-)
+  (gl:draw-arrays gl:+triangles+ 0 3))
 
 (glfw:init)
 (define window
@@ -64,28 +40,9 @@ EOF
 (gl:polygon-mode gl:+front-and-back+ gl:+fill+)
 (check-error)
 
-(print "vertex shader")
-(define vertex-shader
-  (make-shader gl:+vertex-shader+ vertex-shader-source))
-(gl:compile-shader vertex-shader)
-(check-error)
-
-(print "fragment shader 1")
-(define fragment-shader
-  (make-shader gl:+fragment-shader+ fragment-shader-source))
-(gl:compile-shader fragment-shader)
-(check-error)
-
-(print "program 1")
 (define program
-  (make-program (list vertex-shader fragment-shader)))
-(check-error)
+  (pipeline:make "vertex.glsl" "fragment.glsl"))
 
-(define color-location
-  (gl:get-uniform-location program "outColor"))
-
-(gl:delete-shader vertex-shader)
-(gl:delete-shader fragment-shader)
 
 (print "VAO1")
 (define vbo1 (gen-buffer))
