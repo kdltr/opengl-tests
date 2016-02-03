@@ -11,35 +11,51 @@
 (load "pipeline")
 (import (prefix pipeline pipeline:))
 
+(define cubes-pos
+  '((0 0 0)
+    (2 5 -15)
+    (-1.5 -2.2 -2.5)
+    (-3.8 -2 -12.3)
+    (2.4 -0.5 -3.5)
+    (-1.7 3 -7.5)
+    (1.3 -2 -2.5)
+    (1.5 2 -2.5)
+    (1.5 0.5 -1.5)
+    (-1.3 1 -1.5)))
+
+(define (render-cube model-mat)
+  (gl:bind-vertex-array vao1)
+  (gl:uniform-matrix4fv model-location 1 #f model-mat)
+  (gl:draw-arrays gl:+triangles+ 0 36))
+
 (define (render)
+  (define view (translation (make-point 0 0 -30)))
+  (define projection (perspective 800 600 0.1 100 45))
+
   (gl:clear-color 0.2 0.3 0.3 1)
-  (gl:clear gl:+color-buffer-bit+)
+  (gl:clear (bitwise-ior gl:+color-buffer-bit+
+                         gl:+depth-buffer-bit+))
   (gl:use-program program)
 
   (gl:uniform1f mix-factor-location (+ 0.5 (/ (sin (glfw:get-time)) 2)))
-
   (gl:active-texture gl:+texture0+)
   (gl:bind-texture gl:+texture-2d+ wood-texture)
   (gl:uniform1i wood-texture-location 0)
-
   (gl:active-texture gl:+texture1+)
   (gl:bind-texture gl:+texture-2d+ smile-texture)
   (gl:uniform1i smile-texture-location 1)
 
-  (gl:bind-vertex-array vao1)
+  (gl:uniform-matrix4fv view-location 1 #f view)
+  (gl:uniform-matrix4fv projection-location 1 #f projection)
 
-  (gl:uniform-matrix4fv transform-location 1 #f
-                        (m* (translation (make-point 0.5 -0.5 0))
-                            (ypr-rotation 0 0 (glfw:get-time))))
-  (gl:draw-elements gl:+triangles+ 6 gl:+unsigned-int+ #f)
-
-  (gl:uniform-matrix4fv transform-location 1 #f
-                        (m* (translation (make-point -0.5 0.5 0))
-                            (let ((factor (+ 0.5 (/ (sin (glfw:get-time)) 2))))
-                              (2d-scaling factor factor))))
-  (gl:draw-elements gl:+triangles+ 6 gl:+unsigned-int+ #f)
-
-  (gl:bind-vertex-array 0))
+  (for-each
+   (lambda (pos n)
+     (render-cube (m*
+                   (axis-angle-rotation (make-point 1 0.3 0.5)
+                                        (* 20 n))
+                   (translation (apply make-point pos)))))
+   cubes-pos
+   (iota (length cubes-pos))))
 
 (glfw:init)
 (define window
@@ -52,6 +68,7 @@
 (glfw:make-context-current window)
 (print "init")
 (gl:init)
+(gl:enable gl:+depth-test+)
 (check-error)
 
 (define wood-texture
@@ -75,8 +92,14 @@
 (define program
   (pipeline:make "vertex.glsl" "fragment.glsl"))
 
-(define transform-location
-  (gl:get-uniform-location program "transform"))
+(define model-location
+  (gl:get-uniform-location program "model"))
+
+(define view-location
+  (gl:get-uniform-location program "view"))
+
+(define projection-location
+  (gl:get-uniform-location program "projection"))
 
 (define mix-factor-location
   (gl:get-uniform-location program "mixFactor"))
@@ -92,29 +115,58 @@
 (define vao1 (gen-vertex-array))
 (define ebo1 (gen-buffer))
 (define vertices1
-  ;;    coordinates   color        texture coords
-  #f32( 0.5  0.5 0.0  1.0 0.0 0.0  2.0 2.0
-        0.5 -0.5 0.0  0.0 1.0 0.0  2.0 0.0
-       -0.5 -0.5 0.0  0.0 0.0 1.0  0.0 0.0
-       -0.5  0.5 0.0  1.0 1.0 0.0  0.0 2.0
-       ))
-(define indices1
-  #u32(0 1 3
-       1 2 3))
+  #f32(
+    -0.5 -0.5 -0.5  0.0 0.0
+     0.5 -0.5 -0.5  1.0 0.0
+     0.5  0.5 -0.5  1.0 1.0
+     0.5  0.5 -0.5  1.0 1.0
+    -0.5  0.5 -0.5  0.0 1.0
+    -0.5 -0.5 -0.5  0.0 0.0
+
+    -0.5 -0.5  0.5  0.0 0.0
+     0.5 -0.5  0.5  1.0 0.0
+     0.5  0.5  0.5  1.0 1.0
+     0.5  0.5  0.5  1.0 1.0
+    -0.5  0.5  0.5  0.0 1.0
+    -0.5 -0.5  0.5  0.0 0.0
+
+    -0.5  0.5  0.5  1.0 0.0
+    -0.5  0.5 -0.5  1.0 1.0
+    -0.5 -0.5 -0.5  0.0 1.0
+    -0.5 -0.5 -0.5  0.0 1.0
+    -0.5 -0.5  0.5  0.0 0.0
+    -0.5  0.5  0.5  1.0 0.0
+
+     0.5  0.5  0.5  1.0 0.0
+     0.5  0.5 -0.5  1.0 1.0
+     0.5 -0.5 -0.5  0.0 1.0
+     0.5 -0.5 -0.5  0.0 1.0
+     0.5 -0.5  0.5  0.0 0.0
+     0.5  0.5  0.5  1.0 0.0
+
+    -0.5 -0.5 -0.5  0.0 1.0
+     0.5 -0.5 -0.5  1.0 1.0
+     0.5 -0.5  0.5  1.0 0.0
+     0.5 -0.5  0.5  1.0 0.0
+    -0.5 -0.5  0.5  0.0 0.0
+    -0.5 -0.5 -0.5  0.0 1.0
+
+    -0.5  0.5 -0.5  0.0 1.0
+     0.5  0.5 -0.5  1.0 1.0
+     0.5  0.5  0.5  1.0 0.0
+     0.5  0.5  0.5  1.0 0.0
+    -0.5  0.5  0.5  0.0 0.0
+    -0.5  0.5 -0.5  0.0 1.0))
 
 (gl:bind-vertex-array vao1)
 
 (gl:bind-buffer gl:+array-buffer+ vbo1)
 (gl:buffer-data gl:+array-buffer+ (size vertices1) (->pointer vertices1) gl:+static-draw+)
-(gl:bind-buffer gl:+element-array-buffer+ ebo1)
-(gl:buffer-data gl:+element-array-buffer+ (size indices1) (->pointer indices1) gl:+static-draw+)
 
-(gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 8 4) #f)
+(gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 5 4) #f)
 (gl:enable-vertex-attrib-array 0)
-(gl:vertex-attrib-pointer 1 3 gl:+float+ #f (* 8 4) (address->pointer (* 3 4)))
+(gl:vertex-attrib-pointer 1 2 gl:+float+ #f (* 5 4) (address->pointer (* 3 4)))
 (gl:enable-vertex-attrib-array 1)
-(gl:vertex-attrib-pointer 2 2 gl:+float+ #f (* 8 4) (address->pointer (* 6 4)))
-(gl:enable-vertex-attrib-array 2)
 
 (gl:bind-vertex-array 0)
 (check-error)
