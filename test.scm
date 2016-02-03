@@ -5,7 +5,8 @@
   (prefix glfw3 glfw:)
   (prefix opengl-glew gl:)
   gl-utils-core
-  soil)
+  soil
+  gl-math)
 
 (load "pipeline")
 (import (prefix pipeline pipeline:))
@@ -15,7 +16,9 @@
   (gl:clear gl:+color-buffer-bit+)
   (gl:use-program program)
 
-  (gl:uniform3f offset-location 0 0 0)
+  (gl:uniform-matrix4fv transform-location 1 #f
+                        (m* (translation (make-point 0.5 -0.5 0))
+                            (ypr-rotation 0 0 (glfw:get-time))))
   (gl:uniform1f mix-factor-location (+ 0.5 (/ (sin (glfw:get-time)) 2)))
 
   (gl:active-texture gl:+texture0+)
@@ -64,8 +67,8 @@
 (define program
   (pipeline:make "vertex.glsl" "fragment.glsl"))
 
-(define offset-location
-  (gl:get-uniform-location program "offset"))
+(define transform-location
+  (gl:get-uniform-location program "transform"))
 
 (define mix-factor-location
   (gl:get-uniform-location program "mixFactor"))
