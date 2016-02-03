@@ -16,6 +16,7 @@
   (gl:use-program program)
 
   (gl:uniform3f offset-location 0 0 0)
+  (gl:uniform1f mix-factor-location (+ 0.5 (/ (sin (glfw:get-time)) 2)))
 
   (gl:active-texture gl:+texture0+)
   (gl:bind-texture gl:+texture-2d+ wood-texture)
@@ -66,6 +67,9 @@
 (define offset-location
   (gl:get-uniform-location program "offset"))
 
+(define mix-factor-location
+  (gl:get-uniform-location program "mixFactor"))
+
 (define wood-texture-location
   (gl:get-uniform-location program "woodTexture"))
 
@@ -78,10 +82,10 @@
 (define ebo1 (gen-buffer))
 (define vertices1
   ;;    coordinates   color        texture coords
-  #f32( 0.5  0.5 0.0  1.0 0.0 0.0  1.0 1.0
-        0.5 -0.5 0.0  0.0 1.0 0.0  1.0 0.0
+  #f32( 0.5  0.5 0.0  1.0 0.0 0.0  2.0 2.0
+        0.5 -0.5 0.0  0.0 1.0 0.0  2.0 0.0
        -0.5 -0.5 0.0  0.0 0.0 1.0  0.0 0.0
-       -0.5  0.5 0.0  1.0 1.0 0.0  0.0 1.0
+       -0.5  0.5 0.0  1.0 1.0 0.0  0.0 2.0
        ))
 (define indices1
   #u32(0 1 3
