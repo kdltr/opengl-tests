@@ -16,9 +16,6 @@
   (gl:clear gl:+color-buffer-bit+)
   (gl:use-program program)
 
-  (gl:uniform-matrix4fv transform-location 1 #f
-                        (m* (translation (make-point 0.5 -0.5 0))
-                            (ypr-rotation 0 0 (glfw:get-time))))
   (gl:uniform1f mix-factor-location (+ 0.5 (/ (sin (glfw:get-time)) 2)))
 
   (gl:active-texture gl:+texture0+)
@@ -30,7 +27,18 @@
   (gl:uniform1i smile-texture-location 1)
 
   (gl:bind-vertex-array vao1)
+
+  (gl:uniform-matrix4fv transform-location 1 #f
+                        (m* (translation (make-point 0.5 -0.5 0))
+                            (ypr-rotation 0 0 (glfw:get-time))))
   (gl:draw-elements gl:+triangles+ 6 gl:+unsigned-int+ #f)
+
+  (gl:uniform-matrix4fv transform-location 1 #f
+                        (m* (translation (make-point -0.5 0.5 0))
+                            (let ((factor (+ 0.5 (/ (sin (glfw:get-time)) 2))))
+                              (2d-scaling factor factor))))
+  (gl:draw-elements gl:+triangles+ 6 gl:+unsigned-int+ #f)
+
   (gl:bind-vertex-array 0))
 
 (glfw:init)
