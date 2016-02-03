@@ -29,7 +29,7 @@
   (gl:draw-arrays gl:+triangles+ 0 36))
 
 (define (render)
-  (define view (translation (make-point 0 0 -30)))
+  (define view (translation (make-point 0 0 -5)))
   (define projection (perspective 800 600 0.1 100 45))
 
   (gl:clear-color 0.2 0.3 0.3 1)
@@ -51,9 +51,11 @@
   (for-each
    (lambda (pos n)
      (render-cube (m*
+                   (translation (apply make-point pos))
                    (axis-angle-rotation (make-point 1 0.3 0.5)
-                                        (* 20 n))
-                   (translation (apply make-point pos)))))
+                                        (if (zero? (modulo n 3))
+                                            (glfw:get-time)
+                                            (* 20 n))))))
    cubes-pos
    (iota (length cubes-pos))))
 
