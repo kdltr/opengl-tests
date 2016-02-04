@@ -11,6 +11,38 @@
 (load "pipeline")
 (import (prefix pipeline pipeline:))
 
+(define width 800)
+(define height 600)
+
+
+(define camera-position (make-point 0 0 3))
+(define camera-front (make-point 0 0 -1))
+(define camera-up (make-point 0 1 0))
+(define camera-speed 30)
+
+
+(define keys (make-vector 1024 #f))
+(glfw:key-callback
+ (lambda (window key scancode action mods)
+   (print (list key: key action: action))
+   (vector-set! keys key
+                (select action
+                  ((glfw:+press+) #t)
+                  ((glfw:+release+) #f)
+                  (else (vector-ref keys key))))))
+
+(define (move-camera dt)
+  (if (vector-ref keys glfw:+key-w+)
+      (set! camera-position (v+ camera-position (v* camera-front (* dt camera-speed)))))
+  (if (vector-ref keys glfw:+key-s+)
+      (set! camera-position (v- camera-position (v* camera-front (* dt camera-speed)))))
+  (if (vector-ref keys glfw:+key-a+)
+      (set! camera-position (v- camera-position
+                                (v* (normalize! (cross-product camera-front camera-up)) (* dt camera-speed)))))
+  (if (vector-ref keys glfw:+key-d+)
+      (set! camera-position (v+ camera-position
+                                (v* (normalize! (cross-product camera-front camera-up)) (* dt camera-speed))))))
+
 (define cubes-pos
   '((0 0 0)
     (2 5 -15)
@@ -29,14 +61,8 @@
   (gl:draw-arrays gl:+triangles+ 0 36))
 
 (define (render)
-  (define view
-    (let* ((radius 10)
-           (cam-x (* radius (sin (glfw:get-time))))
-           (cam-z (* radius (cos (glfw:get-time)))))
-      (look-at (make-point cam-x 0 cam-z)
-               (make-point 0 0 0)
-               (make-point 0 1 0))))
-  (define projection (perspective 800 600 0.1 100 45))
+  (define view (look-at camera-position (v+ camera-position camera-front) camera-up))
+  (define projection (perspective width height 0.1 100 45))
 
   (gl:clear-color 0.2 0.3 0.3 1)
   (gl:clear (bitwise-ior gl:+color-buffer-bit+
@@ -67,7 +93,7 @@
 
 (glfw:init)
 (define window
-  (glfw:make-window 800 600 "Test"
+  (glfw:make-window width height "Test"
                     resizable: #f
                     context-version-major: 3
                     context-version-minor: 3
@@ -93,7 +119,7 @@
                                  texture/invert-y)))
 
 (print "viewport and draw mode")
-(gl:viewport 0 0 800 600)
+(gl:viewport 0 0 width height)
 (gl:polygon-mode gl:+front-and-back+ gl:+fill+)
 (check-error)
 
@@ -179,9 +205,13 @@
 (gl:bind-vertex-array 0)
 (check-error)
 
-
+(define last-clock (glfw:get-time))
 (while (not (glfw:window-should-close window))
   (glfw:poll-events)
+  (let* ((clock (glfw:get-time))
+         (dt (- clock last-clock)))
+    (set! last-clock clock)
+    (move-camera dt))
   (render)
   (glfw:swap-buffers window))
 
