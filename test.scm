@@ -19,7 +19,9 @@
 (define camera-front (make-point 0 0 -1))
 (define camera-up (make-point 0 1 0))
 (define camera-speed 30)
-
+(define pitch 0)
+(define yaw 0)
+(define fov 45)
 
 (define keys (make-vector 1024 #f))
 (glfw:key-callback
@@ -30,6 +32,28 @@
                   ((glfw:+press+) #t)
                   ((glfw:+release+) #f)
                   (else (vector-ref keys key))))))
+
+(define last-x 400)
+(define last-y 300)
+(glfw:cursor-position-callback
+ (lambda (window x y)
+   (let* ((sensitivity 0.1)
+          (x-offset (* sensitivity (- x last-x)))
+          (y-offset (* sensitivity (- y last-y))))
+     (set! last-x x)
+     (set! last-y y)
+     (set! yaw (+ yaw x-offset))
+     (set! pitch (min 89 (max -89 (+ pitch y-offset))))
+     (set! camera-front
+       (normalize!
+        (make-point (* (cos (degrees->radians pitch)) (cos (degrees->radians yaw)))
+                    (sin (degrees->radians pitch))
+                    (* (cos (degrees->radians pitch)) (sin (degrees->radians yaw)))))))))
+
+(glfw:scroll-callback
+ (lambda (window x y)
+   (set! fov
+     (max 1 (min 45 (+ fov y))))))
 
 (define (move-camera dt)
   (if (vector-ref keys glfw:+key-w+)
@@ -62,7 +86,7 @@
 
 (define (render)
   (define view (look-at camera-position (v+ camera-position camera-front) camera-up))
-  (define projection (perspective width height 0.1 100 45))
+  (define projection (perspective width height 0.1 100 fov))
 
   (gl:clear-color 0.2 0.3 0.3 1)
   (gl:clear (bitwise-ior gl:+color-buffer-bit+
@@ -99,6 +123,7 @@
                     context-version-minor: 3
                     opengl-forward-compat: #t
                     opengl-profile: glfw:+opengl-core-profile+))
+(glfw:set-input-mode window glfw:+cursor+ glfw:+cursor-disabled+)
 (glfw:make-context-current window)
 (print "init")
 (gl:init)
