@@ -29,7 +29,13 @@
   (gl:draw-arrays gl:+triangles+ 0 36))
 
 (define (render)
-  (define view (translation (make-point 0 0 -5)))
+  (define view
+    (let* ((radius 10)
+           (cam-x (* radius (sin (glfw:get-time))))
+           (cam-z (* radius (cos (glfw:get-time)))))
+      (look-at (make-point cam-x 0 cam-z)
+               (make-point 0 0 0)
+               (make-point 0 1 0))))
   (define projection (perspective 800 600 0.1 100 45))
 
   (gl:clear-color 0.2 0.3 0.3 1)
