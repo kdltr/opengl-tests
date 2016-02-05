@@ -8,112 +8,48 @@
   soil
   gl-math)
 
+(define width 1280)
+(define height 720)
+
 (load "pipeline")
 (import (prefix pipeline pipeline:))
 
-(define width 800)
-(define height 600)
+(load "cube")
+(load "camera")
 
-
-(define camera-position (make-point 0 0 3))
-(define camera-front (make-point 0 0 -1))
-(define camera-up (make-point 0 1 0))
-(define camera-speed 30)
-(define pitch 0)
-(define yaw 0)
-(define fov 45)
-
-(define keys (make-vector 1024 #f))
-(glfw:key-callback
- (lambda (window key scancode action mods)
-   (print (list key: key action: action))
-   (vector-set! keys key
-                (select action
-                  ((glfw:+press+) #t)
-                  ((glfw:+release+) #f)
-                  (else (vector-ref keys key))))))
-
-(define last-x 400)
-(define last-y 300)
-(glfw:cursor-position-callback
- (lambda (window x y)
-   (let* ((sensitivity 0.1)
-          (x-offset (* sensitivity (- x last-x)))
-          (y-offset (* sensitivity (- y last-y))))
-     (set! last-x x)
-     (set! last-y y)
-     (set! yaw (+ yaw x-offset))
-     (set! pitch (min 89 (max -89 (+ pitch y-offset))))
-     (set! camera-front
-       (normalize!
-        (make-point (* (cos (degrees->radians pitch)) (cos (degrees->radians yaw)))
-                    (sin (degrees->radians pitch))
-                    (* (cos (degrees->radians pitch)) (sin (degrees->radians yaw)))))))))
-
-(glfw:scroll-callback
- (lambda (window x y)
-   (set! fov
-     (max 1 (min 45 (+ fov y))))))
-
-(define (move-camera dt)
-  (if (vector-ref keys glfw:+key-w+)
-      (set! camera-position (v+ camera-position (v* camera-front (* dt camera-speed)))))
-  (if (vector-ref keys glfw:+key-s+)
-      (set! camera-position (v- camera-position (v* camera-front (* dt camera-speed)))))
-  (if (vector-ref keys glfw:+key-a+)
-      (set! camera-position (v- camera-position
-                                (v* (normalize! (cross-product camera-front camera-up)) (* dt camera-speed)))))
-  (if (vector-ref keys glfw:+key-d+)
-      (set! camera-position (v+ camera-position
-                                (v* (normalize! (cross-product camera-front camera-up)) (* dt camera-speed))))))
-
-(define cubes-pos
-  '((0 0 0)
-    (2 5 -15)
-    (-1.5 -2.2 -2.5)
-    (-3.8 -2 -12.3)
-    (2.4 -0.5 -3.5)
-    (-1.7 3 -7.5)
-    (1.3 -2 -2.5)
-    (1.5 2 -2.5)
-    (1.5 0.5 -1.5)
-    (-1.3 1 -1.5)))
-
-(define (render-cube model-mat)
-  (gl:bind-vertex-array vao1)
-  (gl:uniform-matrix4fv model-location 1 #f model-mat)
-  (gl:draw-arrays gl:+triangles+ 0 36))
 
 (define (render)
   (define view (look-at camera-position (v+ camera-position camera-front) camera-up))
   (define projection (perspective width height 0.1 100 fov))
+  (define object-color '(1 0.5 0.31))
+  (define light-color (list (+ 0.5 (/ (sin (glfw:get-time)) 2))
+                            (+ 0.5 (/ (sin (* 3 (glfw:get-time))) 2))
+                            (+ 0.5 (/ (sin (* 5 (glfw:get-time))) 2))))
+  (define light-position (m*vector!
+                          (y-rotation (/ (glfw:get-time) 10))
+                          (make-point 1 -1 -1)))
 
-  (gl:clear-color 0.2 0.3 0.3 1)
+  (gl:clear-color 0 0 0 1)
   (gl:clear (bitwise-ior gl:+color-buffer-bit+
                          gl:+depth-buffer-bit+))
-  (gl:use-program program)
 
-  (gl:uniform1f mix-factor-location (+ 0.5 (/ (sin (glfw:get-time)) 2)))
-  (gl:active-texture gl:+texture0+)
-  (gl:bind-texture gl:+texture-2d+ wood-texture)
-  (gl:uniform1i wood-texture-location 0)
-  (gl:active-texture gl:+texture1+)
-  (gl:bind-texture gl:+texture-2d+ smile-texture)
-  (gl:uniform1i smile-texture-location 1)
+  (gl:use-program object-program)
+  (gl:uniform-matrix4fv object-view-location 1 #f view)
+  (gl:uniform-matrix4fv object-projection-location 1 #f projection)
+  (apply gl:uniform3f object-color-location object-color)
+  (apply gl:uniform3f object-light-color-location light-color)
+  (gl:uniform3fv object-light-position-location 1 light-position)
+  (gl:uniform3fv object-viewer-position-location 1 camera-position)
+  (render-cube object-model-location (rotate-y (glfw:get-time) (rotate-x (glfw:get-time)
+                                                                         (3d-scaling 0.5 0.5 0.5))))
 
-  (gl:uniform-matrix4fv view-location 1 #f view)
-  (gl:uniform-matrix4fv projection-location 1 #f projection)
+  (gl:use-program light-program)
+  (gl:uniform-matrix4fv light-view-location 1 #f view)
+  (gl:uniform-matrix4fv light-projection-location 1 #f projection)
+  (apply gl:uniform3f light-light-color-location light-color)
+  (render-cube light-model-location (translate light-position (3d-scaling 0.1 0.1 0.1)))
 
-  (for-each
-   (lambda (pos n)
-     (render-cube (m*
-                   (translation (apply make-point pos))
-                   (axis-angle-rotation (make-point 1 0.3 0.5)
-                                        (if (zero? (modulo n 3))
-                                            (glfw:get-time)
-                                            (* 20 n))))))
-   cubes-pos
-   (iota (length cubes-pos))))
+  )
 
 (glfw:init)
 (define window
@@ -129,106 +65,41 @@
 (gl:init)
 (gl:enable gl:+depth-test+)
 (check-error)
-
-(define wood-texture
-  (load-ogl-texture "container.jpg"
-                    force-channels/rgb
-                    texture-id/create-new-id
-                    texture/mipmaps))
-
-(define smile-texture
-  (load-ogl-texture "awesomeface.png"
-                    force-channels/rgb
-                    texture-id/create-new-id
-                    (bitwise-ior texture/mipmaps
-                                 texture/invert-y)))
+(define cube (make-cube))
 
 (print "viewport and draw mode")
 (gl:viewport 0 0 width height)
 (gl:polygon-mode gl:+front-and-back+ gl:+fill+)
 (check-error)
 
-(define program
+(define object-program
   (pipeline:make "vertex.glsl" "fragment.glsl"))
+(define object-model-location
+  (gl:get-uniform-location object-program "model"))
+(define object-view-location
+  (gl:get-uniform-location object-program "view"))
+(define object-projection-location
+  (gl:get-uniform-location object-program "projection"))
+(define object-color-location
+  (gl:get-uniform-location object-program "objectColor"))
+(define object-light-color-location
+  (gl:get-uniform-location object-program "lightColor"))
+(define object-light-position-location
+  (gl:get-uniform-location object-program "lightPosition"))
+(define object-viewer-position-location
+  (gl:get-uniform-location object-program "viewerPosition"))
 
-(define model-location
-  (gl:get-uniform-location program "model"))
+(define light-program
+  (pipeline:make "vertex.glsl" "light-fragment.glsl"))
+(define light-model-location
+  (gl:get-uniform-location light-program "model"))
+(define light-view-location
+  (gl:get-uniform-location light-program "view"))
+(define light-projection-location
+  (gl:get-uniform-location light-program "projection"))
+(define light-light-color-location
+  (gl:get-uniform-location light-program "lightColor"))
 
-(define view-location
-  (gl:get-uniform-location program "view"))
-
-(define projection-location
-  (gl:get-uniform-location program "projection"))
-
-(define mix-factor-location
-  (gl:get-uniform-location program "mixFactor"))
-
-(define wood-texture-location
-  (gl:get-uniform-location program "woodTexture"))
-
-(define smile-texture-location
-  (gl:get-uniform-location program "smileTexture"))
-
-(print "VAO1")
-(define vbo1 (gen-buffer))
-(define vao1 (gen-vertex-array))
-(define ebo1 (gen-buffer))
-(define vertices1
-  #f32(
-    -0.5 -0.5 -0.5  0.0 0.0
-     0.5 -0.5 -0.5  1.0 0.0
-     0.5  0.5 -0.5  1.0 1.0
-     0.5  0.5 -0.5  1.0 1.0
-    -0.5  0.5 -0.5  0.0 1.0
-    -0.5 -0.5 -0.5  0.0 0.0
-
-    -0.5 -0.5  0.5  0.0 0.0
-     0.5 -0.5  0.5  1.0 0.0
-     0.5  0.5  0.5  1.0 1.0
-     0.5  0.5  0.5  1.0 1.0
-    -0.5  0.5  0.5  0.0 1.0
-    -0.5 -0.5  0.5  0.0 0.0
-
-    -0.5  0.5  0.5  1.0 0.0
-    -0.5  0.5 -0.5  1.0 1.0
-    -0.5 -0.5 -0.5  0.0 1.0
-    -0.5 -0.5 -0.5  0.0 1.0
-    -0.5 -0.5  0.5  0.0 0.0
-    -0.5  0.5  0.5  1.0 0.0
-
-     0.5  0.5  0.5  1.0 0.0
-     0.5  0.5 -0.5  1.0 1.0
-     0.5 -0.5 -0.5  0.0 1.0
-     0.5 -0.5 -0.5  0.0 1.0
-     0.5 -0.5  0.5  0.0 0.0
-     0.5  0.5  0.5  1.0 0.0
-
-    -0.5 -0.5 -0.5  0.0 1.0
-     0.5 -0.5 -0.5  1.0 1.0
-     0.5 -0.5  0.5  1.0 0.0
-     0.5 -0.5  0.5  1.0 0.0
-    -0.5 -0.5  0.5  0.0 0.0
-    -0.5 -0.5 -0.5  0.0 1.0
-
-    -0.5  0.5 -0.5  0.0 1.0
-     0.5  0.5 -0.5  1.0 1.0
-     0.5  0.5  0.5  1.0 0.0
-     0.5  0.5  0.5  1.0 0.0
-    -0.5  0.5  0.5  0.0 0.0
-    -0.5  0.5 -0.5  0.0 1.0))
-
-(gl:bind-vertex-array vao1)
-
-(gl:bind-buffer gl:+array-buffer+ vbo1)
-(gl:buffer-data gl:+array-buffer+ (size vertices1) (->pointer vertices1) gl:+static-draw+)
-
-(gl:vertex-attrib-pointer 0 3 gl:+float+ #f (* 5 4) #f)
-(gl:enable-vertex-attrib-array 0)
-(gl:vertex-attrib-pointer 1 2 gl:+float+ #f (* 5 4) (address->pointer (* 3 4)))
-(gl:enable-vertex-attrib-array 1)
-
-(gl:bind-vertex-array 0)
-(check-error)
 
 (define last-clock (glfw:get-time))
 (while (not (glfw:window-should-close window))
